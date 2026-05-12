@@ -11,7 +11,6 @@ function App() {
   const [editingCard, setEditingCard] = useState<Card | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // 鑑定料を 5,000円 に設定
   const GRADING_FEE = 5000; 
   const FEE_RATE = 0.1;     
 
@@ -54,16 +53,14 @@ function App() {
     else fetchCards();
   };
 
-  // 表示用のデータを作成（利益を計算して並び替え）
-  const processedCards = cards
+  const processedCards = (cards || [])
     .map(card => {
-      // (販売価格 * 0.9) - 素体価格 - 5000円
-      const afterFeePrice = card.psa10_price * (1 - FEE_RATE);
-      const netProfit = Math.floor(afterFeePrice - card.raw_price - GRADING_FEE);
+      const afterFeePrice = (card.psa10_price || 0) * (1 - FEE_RATE);
+      const netProfit = Math.floor(afterFeePrice - (card.raw_price || 0) - GRADING_FEE);
       return { ...card, profit: netProfit };
     })
-    .sort((a, b) => b.profit - a.profit)
-    .filter(c => c.name.includes(searchTerm) || (c.number && c.number.includes(searchTerm)));
+    .sort((a, b) => (b.profit || 0) - (a.profit || 0))
+    .filter(c => (c.name || '').includes(searchTerm) || (c.number && c.number.includes(searchTerm)));
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#0f172a', color: 'white', padding: '20px' }}>
@@ -96,13 +93,7 @@ function App() {
               onEdit={() => { setEditingCard(card); setShowForm(true); }}
               onDelete={() => handleDelete(card.id)}
             />
-            <div style={{ 
-              position: 'absolute', 
-              bottom: '12px', 
-              right: '60px', 
-              fontSize: '10px', 
-              color: '#64748b' 
-            }}>
+            <div style={{ position: 'absolute', bottom: '12px', right: '60px', fontSize: '10px', color: '#64748b' }}>
               ※鑑定料¥{GRADING_FEE.toLocaleString()}・手数料10%込
             </div>
           </div>
@@ -114,11 +105,7 @@ function App() {
           <div style={{ backgroundColor: '#1e293b', width: '100%', maxWidth: '400px', borderRadius: '20px', padding: '24px', position: 'relative' }}>
             <button onClick={() => { setShowForm(false); setEditingCard(null); }} style={{ position: 'absolute', top: '16px', right: '16px', background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>✕</button>
             <h2 style={{ fontSize: '18px', marginBottom: '20px', textAlign: 'center' }}>{editingCard ? '編集' : 'カード追加'}</h2>
-            <CardForm 
-              onSubmit={handleAdd} 
-              onClose={() => setShowForm(false)} 
-              initial={editingCard} 
-            />
+            <CardForm onSubmit={handleAdd} onClose={() => setShowForm(false)} initial={editingCard} />
           </div>
         </div>
       )}
