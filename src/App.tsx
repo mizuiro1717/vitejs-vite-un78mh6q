@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, Search } from 'lucide-react';
 import { supabase, type Card } from './lib/supabase';
 import { CardCard } from './components/CardCard';
@@ -60,7 +60,7 @@ function App() {
       return { ...card, profit: netProfit };
     })
     .sort((a, b) => (b.profit || 0) - (a.profit || 0))
-    .filter(c => (c.name || '').includes(searchTerm) || (c.number && c.number.includes(searchTerm)));
+    .filter(c => (c.name || '').includes(searchTerm) || (c.card_number && c.card_number.includes(searchTerm)));
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#0f172a', color: 'white', padding: '20px' }}>
@@ -86,7 +86,7 @@ function App() {
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', paddingBottom: '100px' }}>
-        {processedCards.map(card => (
+        {!loading && processedCards.map(card => (
           <div key={card.id} style={{ position: 'relative' }}>
             <CardCard
               card={card}
