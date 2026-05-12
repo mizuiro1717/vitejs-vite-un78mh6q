@@ -1,10 +1,75 @@
 import { useState, useEffect } from 'react';
-import { Plus, Search, ArrowLeft } from 'lucide-react';
+import { Plus, Search, ArrowLeft, Pencil, Trash2 } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import type { Card, CardInsert } from './lib/supabase';
-import { CardCard } from './components/CardCard';
 import { CardForm } from './components/CardForm';
 import { DeleteConfirm } from './components/DeleteConfirm';
+
+// --- カード表示（デザイン固定版） ---
+function CardDisplay({ card, onEdit, onDelete }: { card: Card, onEdit: (c: Card) => void, onDelete: (c: Card) => void }) {
+  const profit = (card.psa10_price || 0) - (card.raw_price || 0);
+
+  return (
+    <div style={{
+      backgroundColor: '#0f172a', // 深い紺色
+      border: '1px solid #1e293b',
+      borderRadius: '16px',
+      padding: '12px',
+      display: 'flex',
+      alignItems: 'center',
+      gap: '12px',
+      marginBottom: '12px',
+      color: 'white',
+      boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
+    }}>
+      {/* 画像エリア：64x88pxで完全固定 */}
+      <div style={{
+        width: '64px',
+        height: '88px',
+        backgroundColor: '#1e293b',
+        borderRadius: '8px',
+        overflow: 'hidden',
+        flexShrink: 0,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}>
+        {card.image_url ? (
+          <img
+            src={card.image_url}
+            alt={card.name}
+            referrerPolicy="no-referrer"
+            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+          />
+        ) : (
+          <span style={{ fontSize: '10px', color: '#475569' }}>{card.number}</span>
+        )}
+      </div>
+
+      {/* テキスト情報 */}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: '10px', color: '#38bdf8', fontFamily: 'monospace' }}>{card.number}</div>
+        <div style={{ fontSize: '14px', fontWeight: 'bold', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{card.name}</div>
+        
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px', fontSize: '11px', marginTop: '4px' }}>
+          <div style={{ color: '#94a3b8' }}>素体: <span style={{ color: 'white' }}>¥{(card.raw_price || 0).toLocaleString()}</span></div>
+          <div style={{ color: '#94a3b8', textAlign: 'right' }}>PSA10: <span style={{ color: '#7dd3fc', fontWeight: 'bold' }}>¥{(card.psa10_price || 0).toLocaleString()}</span></div>
+        </div>
+
+        <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px solid #1e293b', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={{ fontSize: '10px', color: '#64748b' }}>期待利益</span>
+          <span style={{ fontSize: '16px', fontWeight: '900', color: 'white' }}>¥{profit.toLocaleString()}</span>
+        </div>
+      </div>
+
+      {/* ボタン */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <button onClick={() => onEdit(card)} style={{ padding: '8px', backgroundColor: '#1e293b', border: 'none', borderRadius: '8px', color: '#94a3b8', cursor: 'pointer' }}><Pencil size={14} /></button>
+        <button onClick={() => onDelete(card)} style={{ padding: '8px', backgroundColor: '#1e293b', border: 'none', borderRadius: '8px', color: '#ef4444', cursor: 'pointer' }}><Trash2 size={14} /></button>
+      </div>
+    </div>
+  );
+}
 
 export default function App() {
   const [cards, setCards] = useState<Card[]>([]);
@@ -14,45 +79,24 @@ export default function App() {
   const [editCard, setEditCard] = useState<Card | null>(null);
   const [deleteCard, setDeleteCard] = useState<Card | null>(null);
 
-  useEffect(() => {
-    fetchCards();
-  }, []);
+  useEffect(() => { fetchCards(); }, []);
 
   async function fetchCards() {
     setLoading(true);
-    const { data } = await supabase
-      .from('cards')
-      .select('*')
-      .order('created_at', { ascending: false });
+    const { data } = await supabase.from('cards').select('*').order('psa10_price', { ascending: false });
     setCards(data ?? []);
     setLoading(false);
   }
 
   async function handleAdd(card: CardInsert) {
-    const { data, error } = await supabase
-      .from('cards')
-      .insert(card)
-      .select()
-      .maybeSingle();
-    if (!error && data) {
-      setCards((prev) => [data, ...prev]);
-      setMode('list');
-    }
+    const { data, error } = await supabase.from('cards').insert(card).select().maybeSingle();
+    if (!error && data) { fetchCards(); setMode('list'); }
   }
 
   async function handleUpdate(card: CardInsert) {
     if (!editCard) return;
-    const { data, error } = await supabase
-      .from('cards')
-      .update(card)
-      .eq('id', editCard.id)
-      .select()
-      .maybeSingle();
-    if (!error && data) {
-      setCards((prev) => prev.map((c) => (c.id === editCard.id ? data : c)));
-      setMode('list');
-      setEditCard(null);
-    }
+    const { error } = await supabase.from('cards').update(card).eq('id', editCard.id);
+    if (!error) { fetchCards(); setMode('list'); setEditCard(null); }
   }
 
   async function handleDelete() {
@@ -64,73 +108,51 @@ export default function App() {
 
   if (mode === 'add' || (mode === 'edit' && editCard)) {
     return (
-      <div className="min-h-screen bg-slate-950 text-white p-4">
-        <header className="max-w-md mx-auto mb-6 flex items-center gap-3">
-          <button
-            onClick={() => setMode('list')}
-            className="p-2 hover:bg-slate-800 rounded-full text-slate-400"
-          >
-            <ArrowLeft size={24} />
-          </button>
-          <h1 className="text-xl font-bold">
-            {mode === 'add' ? '追加' : '編集'}
-          </h1>
-        </header>
-        <CardForm
-          onSubmit={mode === 'add' ? handleAdd : handleUpdate}
-          onClose={() => setMode('list')}
-          initial={editCard}
-        />
+      <div style={{ minHeight: '100vh', backgroundColor: '#020617', color: 'white', padding: '16px' }}>
+        <button onClick={() => setMode('list')} style={{ marginBottom: '16px', padding: '8px', backgroundColor: '#1e293b', border: 'none', borderRadius: '50%', color: 'white', cursor: 'pointer' }}><ArrowLeft size={20} /></button>
+        <div style={{ maxWidth: '400px', margin: '0 auto' }}>
+          <CardForm onSubmit={mode === 'add' ? handleAdd : handleUpdate} onClose={() => setMode('list')} initial={editCard} />
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white">
-      <header className="sticky top-0 z-30 bg-slate-900/95 backdrop-blur border-b border-slate-800 px-4 py-4 flex items-center justify-between">
-        <h1 className="text-lg font-black pl-2">PSA10 利益チェッカー</h1>
-        <button
-          onClick={() => setMode('add')}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-sky-600 font-bold text-sm shadow-lg"
-        >
-          <Plus size={18} />
-          追加
+    <div style={{ minHeight: '100vh', backgroundColor: '#020617', color: 'white', fontFamily: 'sans-serif', paddingBottom: '40px' }}>
+      <header style={{ position: 'sticky', top: 0, zIndex: 50, backgroundColor: '#020617', borderBottom: '1px solid #1e293b', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <h1 style={{ fontSize: '18px', fontWeight: '900', margin: 0 }}>PSA10 利益チェッカー</h1>
+        <button onClick={() => setMode('add')} style={{ backgroundColor: '#0284c7', border: 'none', padding: '8px 16px', borderRadius: '12px', color: 'white', fontWeight: 'bold', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+          <Plus size={18} /> 追加
         </button>
       </header>
-      <main className="max-w-2xl mx-auto px-4 py-6">
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="カード名で検索..."
-          className="w-full p-4 rounded-2xl bg-slate-900 border border-slate-800 mb-6"
-        />
+
+      <main style={{ maxWidth: '500px', margin: '0 auto', padding: '16px' }}>
+        <div style={{ position: 'relative', marginBottom: '24px' }}>
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="カード名、型番で検索..."
+            style={{ width: '100%', backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '12px', color: 'white', outline: 'none', boxSizing: 'border-box' }}
+          />
+        </div>
+
         {loading ? (
-          <div className="text-center py-20 opacity-50">読み込み中...</div>
+          <div style={{ textAlign: 'center', opacity: 0.5, marginTop: '40px' }}>読み込み中...</div>
         ) : (
-          <div className="grid gap-3">
+          <div>
             {cards
-              .filter((c) => c.name.includes(search))
-              .map((card) => (
-                <CardCard
-                  key={card.id}
-                  card={card}
-                  onEdit={(c) => {
-                    setEditCard(c);
-                    setMode('edit');
-                  }}
-                  onDelete={setDeleteCard}
-                />
-              ))}
+              .filter(c => c.name.includes(search) || (c.number && c.number.includes(search)))
+              .map(card => (
+                <CardDisplay key={card.id} card={card} onEdit={(c) => { setEditCard(c); setMode('edit'); }} onDelete={setDeleteCard} />
+              ))
+            }
           </div>
         )}
       </main>
+
       {deleteCard && (
-        <DeleteConfirm
-          card={deleteCard}
-          onConfirm={handleDelete}
-          onClose={() => setDeleteCard(null)}
-        />
+        <DeleteConfirm card={deleteCard} onConfirm={handleDelete} onClose={() => setDeleteCard(null)} />
       )}
     </div>
   );
