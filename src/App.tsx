@@ -11,6 +11,7 @@ function App() {
   const [editingCard, setEditingCard] = useState<Card | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
+  // 鑑定料を 5,000円 に設定
   const GRADING_FEE = 5000; 
   const FEE_RATE = 0.1;     
 
@@ -56,13 +57,12 @@ function App() {
   // 表示用のデータを作成（利益を計算して並び替え）
   const processedCards = cards
     .map(card => {
+      // (販売価格 * 0.9) - 素体価格 - 5000円
       const afterFeePrice = card.psa10_price * (1 - FEE_RATE);
       const netProfit = Math.floor(afterFeePrice - card.raw_price - GRADING_FEE);
       return { ...card, profit: netProfit };
     })
-    // 利益（profit）が大きい順に並び替え
     .sort((a, b) => b.profit - a.profit)
-    // 検索ワードで絞り込み
     .filter(c => c.name.includes(searchTerm) || (c.number && c.number.includes(searchTerm)));
 
   return (
@@ -107,11 +107,6 @@ function App() {
             </div>
           </div>
         ))}
-        {processedCards.length === 0 && !loading && (
-          <div style={{ textAlign: 'center', color: '#94a3b8', marginTop: '40px' }}>
-            カードが登録されていないか、検索結果がありません。
-          </div>
-        )}
       </div>
 
       {showForm && (
